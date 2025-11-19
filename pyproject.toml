@@ -1,6 +1,6 @@
 [project]
 name = "mem0-tcvectordb"
-version = "0.1.0b0"
+version = "0.1.0"
 description = "TCVectorDB backend for the mem0 memory framework."
 readme = "README.md"
 requires-python = ">=3.9,<4.0"
@@ -25,8 +25,8 @@ classifiers = [
 ]
 dependencies = [
     "mem0ai>=1.0.0,<2.0.0",
-    "tcvectordb>=1.8.5",
-    "rank-bm25>=0.2.2",
+    "tcvectordb>=1.8.0",
+    "rank-bm25>=0.2.0",
 ]
 
 [build-system]
