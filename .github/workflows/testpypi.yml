@@ -1,0 +1,69 @@
+name: TestPyPI
+
+on:
+  push:
+    tags:
+      - "v*"   # pre-releases will be filtered in job condition
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write  # for TestPyPI Trusted Publisher (OIDC)
+
+jobs:
+  build-and-publish-testpypi:
+    name: Build and publish to TestPyPI
+    runs-on: ubuntu-latest
+    # Consider tags with common pre-release markers or hyphen suffix
+    if: contains(github.ref_name, '-') || contains(github.ref_name, 'rc') || contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'dev')
+    env:
+      TEST_PYPI_API_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify tag version matches pyproject.toml
+        run: |
+          TAG="${{ github.ref_name }}"
+          VER_TAG="${TAG#v}"
+          echo "Ref tag: $TAG"
+          PY_VER=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')
+          echo "pyproject version: $PY_VER"
+          if [ "$PY_VER" != "$VER_TAG" ]; then
+            echo "::error::Version mismatch: tag=$VER_TAG pyproject=$PY_VER"
+            exit 1
+          fi
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Publish to TestPyPI (token)
+        if: ${{ env.TEST_PYPI_API_TOKEN != '' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          password: ${{ env.TEST_PYPI_API_TOKEN }}
+          verify-metadata: false
+          skip-existing: true
+          verbose: true
+          attestations: false
+
+      - name: Publish to TestPyPI (OIDC)
+        if: ${{ env.TEST_PYPI_API_TOKEN == '' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          verify-metadata: false
+          skip-existing: true
+          verbose: true
+          attestations: true

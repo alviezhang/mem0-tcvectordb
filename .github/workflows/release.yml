@@ -1,0 +1,59 @@
+name: Publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write  # for PyPI Trusted Publisher (OIDC)
+
+jobs:
+  build-and-publish:
+    name: Build and publish to PyPI
+    runs-on: ubuntu-latest
+    if: ${{ github.event.release.prerelease == false }}
+    env:
+      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify tag version matches pyproject.toml
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VER_TAG="${TAG#v}"
+          echo "Release tag: $TAG"
+          PY_VER=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')
+          echo "pyproject version: $PY_VER"
+          if [ "$PY_VER" != "$VER_TAG" ]; then
+            echo "::error::Version mismatch: tag=$VER_TAG pyproject=$PY_VER"
+            exit 1
+          fi
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Publish to PyPI (token)
+        if: ${{ env.PYPI_API_TOKEN != '' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ env.PYPI_API_TOKEN }}
+          verify-metadata: false
+
+      - name: Publish to PyPI (OIDC)
+        if: ${{ env.PYPI_API_TOKEN == '' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          verify-metadata: false
