@@ -245,6 +245,22 @@ def test_update_with_vector_only_does_not_clear_payload(mock_tcvectordb):
     sent_data = collection.update.call_args.kwargs["data"]
     assert TCVectorDB.VECTOR_FIELD in sent_data
     assert "payload" not in sent_data
+    assert "id" not in sent_data
+
+
+def test_update_payload_only_merges_existing_payload(mock_tcvectordb):
+    store, _, _, collection = mock_tcvectordb
+
+    store.update("mem_1", vector=None, payload={"user_id": "bob", "tag": "new", "data": "hello"})
+
+    collection.update.assert_called_once()
+    update_doc = collection.update.call_args.kwargs["data"]
+    assert "vector" not in update_doc
+    assert update_doc["payload"]["data"] == "hello"
+    assert update_doc["payload"]["user_id"] == "bob"
+    assert update_doc["payload"]["tag"] == "new"
+    assert update_doc["user_id"] == "bob"
+    assert "id" not in update_doc
 
 
 def test_record_from_document_keeps_zero_scores(mock_tcvectordb):
