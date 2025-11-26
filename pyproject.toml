@@ -1,6 +1,6 @@
 [project]
 name = "mem0-tcvectordb"
-version = "0.1.0"
+version = "0.1.1b0"
 description = "TCVectorDB backend for the mem0 memory framework."
 readme = "README.md"
 requires-python = ">=3.9,<4.0"
