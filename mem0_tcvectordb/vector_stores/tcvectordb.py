@@ -213,9 +213,28 @@ class TCVectorDB(VectorStoreBase):
 
     @_vector_operation("update")
     def update(self, vector_id: str, vector: Optional[List[float]] = None, payload: Optional[Dict] = None):
-        """Update an existing vector/payload."""
-        data = self._build_document(vector_id, vector, payload, include_vector=vector is not None)
-        self.collection.update(data=data, document_ids=[vector_id])
+        """Update an existing vector/payload without sending the primary key in the update body."""
+        if vector is None and payload is None:
+            raise ValueError("Either vector or payload must be provided for TCVectorDB update.")
+
+        document: Dict[str, Any] = {}
+
+        if vector is not None:
+            document[self.VECTOR_FIELD] = list(vector)
+
+        if payload is not None:
+            if not isinstance(payload, dict):
+                raise ValueError("Payload must be a dictionary for TCVectorDB update.")
+
+            if "data" in payload:
+                document["text"] = payload["data"]
+
+            for field in self.indexed_fields.keys():
+                if field in payload:
+                    document[field] = payload[field]
+
+            document["payload"] = payload
+        self.collection.update(data=document, document_ids=[vector_id])
 
     @_vector_operation("get")
     def get(self, vector_id: str) -> Optional[OutputData]:
